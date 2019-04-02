@@ -29,7 +29,7 @@ import (
 
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2beta1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta/testrestmapper"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -181,7 +181,7 @@ func (tc *legacyTestCase) prepareTestClient(t *testing.T) (*fake.Clientset, *sca
 				{
 					Type: autoscalingv2.ResourceMetricSourceType,
 					Resource: &autoscalingv2.ResourceMetricSource{
-						Name: v1.ResourceCPU,
+						Name:                     v1.ResourceCPU,
 						TargetAverageUtilization: &tc.CPUTarget,
 					},
 				},
@@ -472,7 +472,11 @@ func (tc *legacyTestCase) runTest(t *testing.T) {
 		if tc.finished {
 			return true, &v1.Event{}, nil
 		}
-		obj := action.(core.CreateAction).GetObject().(*v1.Event)
+		createAction, ok := action.(core.CreateAction)
+		if !ok {
+			return false, nil, nil
+		}
+		obj := createAction.GetObject().(*v1.Event)
 		if tc.verifyEvents {
 			switch obj.Reason {
 			case "SuccessfulRescale":
