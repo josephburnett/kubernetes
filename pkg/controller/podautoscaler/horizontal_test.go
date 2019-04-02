@@ -331,36 +331,40 @@ func (tc *testCase) prepareTestClient(t *testing.T) (*fake.Clientset, *metricsfa
 
 	fakeClient.AddReactor("update", "horizontalpodautoscalers", func(action core.Action) (handled bool, ret runtime.Object, err error) {
 		tc.Lock()
-
 		obj := action.(core.UpdateAction).GetObject().(*autoscalingv1.HorizontalPodAutoscaler)
-		assert.Equal(t, namespace, obj.Namespace, "the HPA namespace should be as expected")
-		assert.Equal(t, hpaName, obj.Name, "the HPA name should be as expected")
-		assert.Equal(t, tc.expectedDesiredReplicas, obj.Status.DesiredReplicas, "the desired replica count reported in the object status should be as expected")
-		if tc.verifyCPUCurrent {
-			if assert.NotNil(t, obj.Status.CurrentCPUUtilizationPercentage, "the reported CPU utilization percentage should be non-nil") {
-				assert.Equal(t, tc.CPUCurrent, *obj.Status.CurrentCPUUtilizationPercentage, "the report CPU utilization percentage should be as expected")
+		err = func() error {
+			// Unlock before pushing onto processed channel.
+			defer tc.Unlock()
+			assert.Equal(t, namespace, obj.Namespace, "the HPA namespace should be as expected")
+			assert.Equal(t, hpaName, obj.Name, "the HPA name should be as expected")
+			assert.Equal(t, tc.expectedDesiredReplicas, obj.Status.DesiredReplicas, "the desired replica count reported in the object status should be as expected")
+			if tc.verifyCPUCurrent {
+				if assert.NotNil(t, obj.Status.CurrentCPUUtilizationPercentage, "the reported CPU utilization percentage should be non-nil") {
+					assert.Equal(t, tc.CPUCurrent, *obj.Status.CurrentCPUUtilizationPercentage, "the report CPU utilization percentage should be as expected")
+				}
 			}
-		}
-		var actualConditions []autoscalingv1.HorizontalPodAutoscalerCondition
-		if err := json.Unmarshal([]byte(obj.ObjectMeta.Annotations[autoscaling.HorizontalPodAutoscalerConditionsAnnotation]), &actualConditions); err != nil {
-			tc.Unlock()
+			var actualConditions []autoscalingv1.HorizontalPodAutoscalerCondition
+			if err := json.Unmarshal([]byte(obj.ObjectMeta.Annotations[autoscaling.HorizontalPodAutoscalerConditionsAnnotation]), &actualConditions); err != nil {
+				return err
+			}
+			// TODO: it's ok not to sort these because statusOk
+			// contains all the conditions, so we'll never be appending.
+			// Default to statusOk when missing any specific conditions
+			if tc.expectedConditions == nil {
+				tc.expectedConditions = statusOkWithOverrides()
+			}
+			// clear the message so that we can easily compare
+			for i := range actualConditions {
+				actualConditions[i].Message = ""
+				actualConditions[i].LastTransitionTime = metav1.Time{}
+			}
+			assert.Equal(t, tc.expectedConditions, actualConditions, "the status conditions should have been as expected")
+			tc.statusUpdated = true
+			return nil
+		}()
+		if err != nil {
 			return true, nil, err
 		}
-		// TODO: it's ok not to sort these becaues statusOk
-		// contains all the conditions, so we'll never be appending.
-		// Default to statusOk when missing any specific conditions
-		if tc.expectedConditions == nil {
-			tc.expectedConditions = statusOkWithOverrides()
-		}
-		// clear the message so that we can easily compare
-		for i := range actualConditions {
-			actualConditions[i].Message = ""
-			actualConditions[i].LastTransitionTime = metav1.Time{}
-		}
-		assert.Equal(t, tc.expectedConditions, actualConditions, "the status conditions should have been as expected")
-		tc.statusUpdated = true
-		// Unlock before pushing onto processed channel.
-		tc.Unlock()
 		// Every time we reconcile HPA object we are updating status.
 		tc.processed <- obj.Name
 		return true, obj, nil
