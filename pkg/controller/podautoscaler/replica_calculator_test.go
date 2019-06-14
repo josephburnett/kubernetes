@@ -1142,7 +1142,23 @@ func TestReplicaCalcMissingMetricsNoChangeEq(t *testing.T) {
 	tc.runTest(t)
 }
 
-// TODO: add test with status.replicas != spec.replicas.
+func TestReplicaCalcMissingMetricsNoChangeEqUnscheduledPods(t *testing.T) {
+	tc := replicaCalcTestCase{
+		currentSpecReplicas:   2,
+		currentStatusReplicas: 4,
+		expectedReplicas:      2,
+		resource: &resourceInfo{
+			name:     v1.ResourceCPU,
+			requests: []resource.Quantity{resource.MustParse("1.0"), resource.MustParse("1.0"), resource.MustParse("1.0"), resource.MustParse("1.0")},
+			levels:   []int64{1000},
+
+			targetUtilization:   100,
+			expectedUtilization: 100,
+			expectedValue:       numContainersPerPod * 1000,
+		},
+	}
+	tc.runTest(t)
+}
 
 func TestReplicaCalcMissingMetricsNoChangeGt(t *testing.T) {
 	tc := replicaCalcTestCase{
