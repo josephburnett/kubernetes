@@ -966,6 +966,29 @@ func TestReplicaCalcTolerance(t *testing.T) {
 	tc.runTest(t)
 }
 
+func TestReplicaCalcToleranceDeploymentRollout(t *testing.T) {
+	tc := replicaCalcTestCase{
+		currentSpecReplicas:   3,
+		currentStatusReplicas: 6, // During Deployment rollouts there can be additional pods scheduled.
+		expectedReplicas:      3,
+		resource: &resourceInfo{
+			name: v1.ResourceCPU,
+			requests: []resource.Quantity{
+				resource.MustParse("0.9"), resource.MustParse("1.0"), resource.MustParse("1.1"),
+				resource.MustParse("0.9"), resource.MustParse("1.0"), resource.MustParse("1.1"),
+			},
+			levels: []int64{
+				1010, 1030, 1020,
+				1010, 1030, 1020,
+			},
+			targetUtilization:   100,
+			expectedUtilization: 102,
+			expectedValue:       numContainersPerPod * 1020,
+		},
+	}
+	tc.runTest(t)
+}
+
 func TestReplicaCalcToleranceCM(t *testing.T) {
 	tc := replicaCalcTestCase{
 		currentSpecReplicas:   3,
@@ -1142,7 +1165,7 @@ func TestReplicaCalcMissingMetricsNoChangeEq(t *testing.T) {
 	tc.runTest(t)
 }
 
-func TestReplicaCalcMissingMetricsNoChangeEqUnscheduledPods(t *testing.T) {
+func TestReplicaCalcMissingMetricsNoChangeEqUnscheduled(t *testing.T) {
 	tc := replicaCalcTestCase{
 		currentSpecReplicas:   2,
 		currentStatusReplicas: 4,
