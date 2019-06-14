@@ -966,10 +966,10 @@ func TestReplicaCalcTolerance(t *testing.T) {
 	tc.runTest(t)
 }
 
-func TestReplicaCalcToleranceDeploymentRollout(t *testing.T) {
+func TestReplicaCalcToleranceSurge(t *testing.T) {
 	tc := replicaCalcTestCase{
 		currentSpecReplicas:   3,
-		currentStatusReplicas: 6, // During Deployment rollouts there can be additional pods scheduled.
+		currentStatusReplicas: 6,
 		expectedReplicas:      3,
 		resource: &resourceInfo{
 			name: v1.ResourceCPU,
@@ -1005,10 +1005,49 @@ func TestReplicaCalcToleranceCM(t *testing.T) {
 	tc.runTest(t)
 }
 
+func TestReplicaCalcToleranceCMSurge(t *testing.T) {
+	tc := replicaCalcTestCase{
+		currentSpecReplicas:   3,
+		currentStatusReplicas: 6,
+		expectedReplicas:      3,
+		metric: &metricInfo{
+			name: "qps",
+			levels: []int64{
+				20000, 21000, 21000,
+				20000, 21000, 21000,
+			},
+			targetUtilization:   20000,
+			expectedUtilization: 20666,
+			metricType:          podMetric,
+		},
+	}
+	tc.runTest(t)
+}
+
 func TestReplicaCalcToleranceCMObject(t *testing.T) {
 	tc := replicaCalcTestCase{
 		currentSpecReplicas:   3,
 		currentStatusReplicas: 3,
+		expectedReplicas:      3,
+		metric: &metricInfo{
+			name:                "qps",
+			levels:              []int64{20666},
+			targetUtilization:   20000,
+			expectedUtilization: 20666,
+			singleObject: &autoscalingv2.CrossVersionObjectReference{
+				Kind:       "Deployment",
+				APIVersion: "apps/v1",
+				Name:       "some-deployment",
+			},
+		},
+	}
+	tc.runTest(t)
+}
+
+func TestReplicaCalcToleranceCMObjectSurge(t *testing.T) {
+	tc := replicaCalcTestCase{
+		currentSpecReplicas:   3,
+		currentStatusReplicas: 6,
 		expectedReplicas:      3,
 		metric: &metricInfo{
 			name:                "qps",
@@ -1046,6 +1085,27 @@ func TestReplicaCalcTolerancePerPodCMObject(t *testing.T) {
 	tc.runTest(t)
 }
 
+func TestReplicaCalcTolerancePerPodCMObjectSurge(t *testing.T) {
+	tc := replicaCalcTestCase{
+		currentSpecReplicas:   4,
+		currentStatusReplicas: 8,
+		expectedReplicas:      4,
+		metric: &metricInfo{
+			metricType:              objectPerPodMetric,
+			name:                    "qps",
+			levels:                  []int64{20166},
+			perPodTargetUtilization: 5000,
+			expectedUtilization:     5042,
+			singleObject: &autoscalingv2.CrossVersionObjectReference{
+				Kind:       "Deployment",
+				APIVersion: "apps/v1",
+				Name:       "some-deployment",
+			},
+		},
+	}
+	tc.runTest(t)
+}
+
 func TestReplicaCalcToleranceCMExternal(t *testing.T) {
 	tc := replicaCalcTestCase{
 		currentSpecReplicas:   3,
@@ -1063,10 +1123,44 @@ func TestReplicaCalcToleranceCMExternal(t *testing.T) {
 	tc.runTest(t)
 }
 
+func TestReplicaCalcToleranceCMExternalSurge(t *testing.T) {
+	tc := replicaCalcTestCase{
+		currentSpecReplicas:   3,
+		currentStatusReplicas: 6,
+		expectedReplicas:      3,
+		metric: &metricInfo{
+			name:                "qps",
+			levels:              []int64{8600},
+			targetUtilization:   8888,
+			expectedUtilization: 8600,
+			selector:            &metav1.LabelSelector{MatchLabels: map[string]string{"label": "value"}},
+			metricType:          externalMetric,
+		},
+	}
+	tc.runTest(t)
+}
+
 func TestReplicaCalcTolerancePerPodCMExternal(t *testing.T) {
 	tc := replicaCalcTestCase{
 		currentSpecReplicas:   3,
 		currentStatusReplicas: 3,
+		expectedReplicas:      3,
+		metric: &metricInfo{
+			name:                    "qps",
+			levels:                  []int64{8600},
+			perPodTargetUtilization: 2900,
+			expectedUtilization:     2867,
+			selector:                &metav1.LabelSelector{MatchLabels: map[string]string{"label": "value"}},
+			metricType:              externalPerPodMetric,
+		},
+	}
+	tc.runTest(t)
+}
+
+func TestReplicaCalcTolerancePerPodCMExternalSurge(t *testing.T) {
+	tc := replicaCalcTestCase{
+		currentSpecReplicas:   3,
+		currentStatusReplicas: 6,
 		expectedReplicas:      3,
 		metric: &metricInfo{
 			name:                    "qps",
