@@ -236,7 +236,7 @@ type specReplicas int32
 type statusReplicas int32
 
 // Many functions shadow the specReplicas type with a specReplicas
-// argument to prevent unintensional crosstalk between spec and status
+// argument to prevent unintentional crosstalk between spec and status
 // replica counts.  This function allows casting from int32 to
 // specReplicas when generating scale recommendations.
 func newSpecReplicas(i int32) specReplicas {
