@@ -362,7 +362,7 @@ func (tc *replicaCalcTestCase) runTest(t *testing.T) {
 	}
 
 	if tc.resource != nil {
-		outReplicas, outUtilization, outRawValue, outTimestamp, err := replicaCalc.GetResourceReplicas(specReplicas(tc.currentSpecReplicas), statusReplicas(tc.currentStatusReplicas), tc.resource.targetUtilization, tc.resource.name, testNamespace, selector)
+		outReplicas, outUtilization, outRawValue, outTimestamp, err := replicaCalc.GetResourceReplicas(specReplicas(tc.currentSpecReplicas), tc.resource.targetUtilization, tc.resource.name, testNamespace, selector)
 
 		if tc.expectedError != nil {
 			require.Error(t, err, "there should be an error calculating the replica count")
@@ -385,12 +385,12 @@ func (tc *replicaCalcTestCase) runTest(t *testing.T) {
 		if tc.metric.singleObject == nil {
 			t.Fatal("Metric specified as objectMetric but metric.singleObject is nil.")
 		}
-		outReplicas, outUtilization, outTimestamp, err = replicaCalc.GetObjectMetricReplicas(specReplicas(tc.currentSpecReplicas), statusReplicas(tc.currentStatusReplicas), tc.metric.targetUtilization, tc.metric.name, testNamespace, tc.metric.singleObject, selector, nil)
+		outReplicas, outUtilization, outTimestamp, err = replicaCalc.GetObjectMetricReplicas(specReplicas(tc.currentSpecReplicas), tc.metric.targetUtilization, tc.metric.name, testNamespace, tc.metric.singleObject, selector, nil)
 	case objectPerPodMetric:
 		if tc.metric.singleObject == nil {
 			t.Fatal("Metric specified as objectMetric but metric.singleObject is nil.")
 		}
-		outReplicas, outUtilization, outTimestamp, err = replicaCalc.GetObjectPerPodMetricReplicas(specReplicas(tc.currentSpecReplicas), statusReplicas(tc.currentStatusReplicas), tc.metric.perPodTargetUtilization, tc.metric.name, testNamespace, tc.metric.singleObject, nil)
+		outReplicas, outUtilization, outTimestamp, err = replicaCalc.GetObjectPerPodMetricReplicas(specReplicas(tc.currentSpecReplicas), tc.metric.perPodTargetUtilization, tc.metric.name, testNamespace, tc.metric.singleObject, nil)
 	case externalMetric:
 		if tc.metric.selector == nil {
 			t.Fatal("Metric specified as externalMetric but metric.selector is nil.")
@@ -398,7 +398,7 @@ func (tc *replicaCalcTestCase) runTest(t *testing.T) {
 		if tc.metric.targetUtilization <= 0 {
 			t.Fatalf("Metric specified as externalMetric but metric.targetUtilization is %d which is <=0.", tc.metric.targetUtilization)
 		}
-		outReplicas, outUtilization, outTimestamp, err = replicaCalc.GetExternalMetricReplicas(specReplicas(tc.currentSpecReplicas), statusReplicas(tc.currentStatusReplicas), tc.metric.targetUtilization, tc.metric.name, testNamespace, tc.metric.selector, selector)
+		outReplicas, outUtilization, outTimestamp, err = replicaCalc.GetExternalMetricReplicas(specReplicas(tc.currentSpecReplicas), tc.metric.targetUtilization, tc.metric.name, testNamespace, tc.metric.selector, selector)
 	case externalPerPodMetric:
 		if tc.metric.selector == nil {
 			t.Fatal("Metric specified as externalPerPodMetric but metric.selector is nil.")
@@ -407,9 +407,9 @@ func (tc *replicaCalcTestCase) runTest(t *testing.T) {
 			t.Fatalf("Metric specified as externalPerPodMetric but metric.perPodTargetUtilization is %d which is <=0.", tc.metric.perPodTargetUtilization)
 		}
 
-		outReplicas, outUtilization, outTimestamp, err = replicaCalc.GetExternalPerPodMetricReplicas(specReplicas(tc.currentSpecReplicas), statusReplicas(tc.currentStatusReplicas), tc.metric.perPodTargetUtilization, tc.metric.name, testNamespace, tc.metric.selector)
+		outReplicas, outUtilization, outTimestamp, err = replicaCalc.GetExternalPerPodMetricReplicas(specReplicas(tc.currentSpecReplicas), tc.metric.perPodTargetUtilization, tc.metric.name, testNamespace, tc.metric.selector)
 	case podMetric:
-		outReplicas, outUtilization, outTimestamp, err = replicaCalc.GetMetricReplicas(specReplicas(tc.currentSpecReplicas), statusReplicas(tc.currentStatusReplicas), tc.metric.targetUtilization, tc.metric.name, testNamespace, selector, nil)
+		outReplicas, outUtilization, outTimestamp, err = replicaCalc.GetMetricReplicas(specReplicas(tc.currentSpecReplicas), tc.metric.targetUtilization, tc.metric.name, testNamespace, selector, nil)
 	default:
 		t.Fatalf("Unknown metric type: %d", tc.metric.metricType)
 	}
