@@ -519,7 +519,7 @@ func (a *HorizontalController) reconcileAutoscaler(hpav1Shared *autoscalingv1.Ho
 		return fmt.Errorf("failed to query scale subresource for %s: %v", reference, err)
 	}
 	setCondition(hpa, autoscalingv2.AbleToScale, v1.ConditionTrue, "SucceededGetScale", "the HPA controller was able to get the target's current scale")
-	currentReplicas := scale.Status.Replicas
+	currentReplicas := scale.Spec.Replicas
 	a.recordInitialRecommendation(currentReplicas, key)
 
 	var metricStatuses []autoscalingv2.MetricStatus
