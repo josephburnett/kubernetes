@@ -208,7 +208,7 @@ func (tc *legacyReplicaCalcTestCase) runTest(t *testing.T) {
 	}
 
 	if tc.resource != nil {
-		outReplicas, outUtilization, outRawValue, outTimestamp, err := replicaCalc.GetResourceReplicas(specReplicas(tc.currentReplicas), tc.resource.targetUtilization, tc.resource.name, testNamespace, selector)
+		outReplicas, outUtilization, outRawValue, outTimestamp, err := replicaCalc.GetResourceReplicas(specReplicas(tc.currentReplicas), statusReplicas(tc.currentReplicas), tc.resource.targetUtilization, tc.resource.name, testNamespace, selector)
 
 		if tc.expectedError != nil {
 			require.Error(t, err, "there should be an error calculating the replica count")
@@ -222,7 +222,7 @@ func (tc *legacyReplicaCalcTestCase) runTest(t *testing.T) {
 		assert.True(t, tc.timestamp.Equal(outTimestamp), "timestamp should be as expected")
 
 	} else {
-		outReplicas, outUtilization, outTimestamp, err := replicaCalc.GetMetricReplicas(specReplicas(tc.currentReplicas), tc.metric.targetUtilization, tc.metric.name, testNamespace, selector, nil)
+		outReplicas, outUtilization, outTimestamp, err := replicaCalc.GetMetricReplicas(specReplicas(tc.currentReplicas), statusReplicas(tc.currentReplicas), tc.metric.targetUtilization, tc.metric.name, testNamespace, selector, nil)
 
 		if tc.expectedError != nil {
 			require.Error(t, err, "there should be an error calculating the replica count")
