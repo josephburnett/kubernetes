@@ -105,9 +105,7 @@ func (c *ReplicaCalculator) GetResourceReplicas(currentReplicas int32, targetUti
 		if usageRatio < 1.0 {
 			// on a scale-down, treat missing pods as using 100% of the resource request
 			for podName := range missingPods {
-				if _, ignored := ignoredPods[podName]; !ignored {
-					metrics[podName] = metricsclient.PodMetric{Value: requests[podName]}
-				}
+				metrics[podName] = metricsclient.PodMetric{Value: requests[podName]}
 			}
 		} else if usageRatio > 1.0 {
 			// on a scale-up, treat missing pods as using 0% of the resource request
@@ -203,9 +201,7 @@ func (c *ReplicaCalculator) calcPlainMetricReplicas(metrics metricsclient.PodMet
 		if usageRatio < 1.0 {
 			// on a scale-down, treat missing pods as using 100% of the resource request
 			for podName := range missingPods {
-				if _, ignored := ignoredPods[podName]; !ignored {
-					metrics[podName] = metricsclient.PodMetric{Value: targetUtilization}
-				}
+				metrics[podName] = metricsclient.PodMetric{Value: targetUtilization}
 			}
 		} else {
 			// on a scale-up, treat missing pods as using 0% of the resource request
@@ -367,6 +363,10 @@ func groupPods(pods []*v1.Pod, metrics metricsclient.PodMetricsInfo, resource v1
 	ignoredPods = sets.NewString()
 	for _, pod := range pods {
 		if pod.DeletionTimestamp != nil || pod.Status.Phase == v1.PodFailed {
+			continue
+		}
+		if _, condition := podutil.GetPodCondition(&pod.Status, v1.PodScheduled); condition == nil || condition.Status == v1.ConditionFalse {
+			ignoredPods.Insert(pod.Name)
 			continue
 		}
 		metric, found := metrics[pod.Name]
