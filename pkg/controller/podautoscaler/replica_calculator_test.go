@@ -94,6 +94,7 @@ type replicaCalcTestCase struct {
 	metricLabelSelector labels.Selector
 
 	podReadiness         []v1.ConditionStatus
+	podScheduled         []v1.ConditionStatus
 	podStartTime         []metav1.Time
 	podPhase             []v1.PodPhase
 	podDeletionTimestamp []bool
@@ -116,8 +117,12 @@ func (tc *replicaCalcTestCase) prepareTestClientSet() *fake.Clientset {
 		}
 		for i := 0; i < podsCount; i++ {
 			podReadiness := v1.ConditionTrue
+			podScheduled := v1.ConditionTrue
 			if tc.podReadiness != nil && i < len(tc.podReadiness) {
 				podReadiness = tc.podReadiness[i]
+			}
+			if tc.podScheduled != nil && i < len(tc.podScheduled) {
+				podScheduled = tc.podScheduled[i]
 			}
 			var podStartTime metav1.Time
 			if tc.podStartTime != nil {
@@ -140,6 +145,10 @@ func (tc *replicaCalcTestCase) prepareTestClientSet() *fake.Clientset {
 						{
 							Type:   v1.PodReady,
 							Status: podReadiness,
+						},
+						{
+							Type:   v1.PodScheduled,
+							Status: podScheduled,
 						},
 					},
 				},
@@ -865,8 +874,9 @@ func TestReplicaCalcScaleDownIncludeUnreadyPods(t *testing.T) {
 func TestReplicaCalcScaleDownExcludeUnscheduledPods(t *testing.T) {
 	tc := replicaCalcTestCase{
 		currentReplicas:  5,
-		expectedReplicas: 2,
-		podReadiness:     []v1.ConditionStatus{v1.ConditionTrue, v1.ConditionFalse, v1.ConditionFalse, v1.ConditionFalse, v1.ConditionFalse},
+		expectedReplicas: 1,
+		podReadiness:     []v1.ConditionStatus{v1.ConditionTrue},
+		podScheduled:     []v1.ConditionStatus{v1.ConditionTrue, v1.ConditionFalse, v1.ConditionFalse, v1.ConditionFalse, v1.ConditionFalse},
 		resource: &resourceInfo{
 			name:     v1.ResourceCPU,
 			requests: []resource.Quantity{resource.MustParse("1.0"), resource.MustParse("1.0"), resource.MustParse("1.0"), resource.MustParse("1.0"), resource.MustParse("1.0")},

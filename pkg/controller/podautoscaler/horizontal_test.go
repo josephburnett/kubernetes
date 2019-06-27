@@ -298,6 +298,10 @@ func (tc *testCase) prepareTestClient(t *testing.T) (*fake.Clientset, *metricsfa
 							Status:             podReadiness,
 							LastTransitionTime: podStartTime,
 						},
+						{
+							Type:   v1.PodScheduled,
+							Status: v1.ConditionTrue,
+						},
 					},
 					StartTime: &podStartTime,
 				},
