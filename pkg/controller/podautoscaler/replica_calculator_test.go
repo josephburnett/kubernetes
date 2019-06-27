@@ -23,7 +23,7 @@ import (
 	"time"
 
 	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta/testrestmapper"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -857,6 +857,24 @@ func TestReplicaCalcScaleDownIncludeUnreadyPods(t *testing.T) {
 			targetUtilization:   50,
 			expectedUtilization: 30,
 			expectedValue:       numContainersPerPod * 300,
+		},
+	}
+	tc.runTest(t)
+}
+
+func TestReplicaCalcScaleDownExcludeUnscheduledPods(t *testing.T) {
+	tc := replicaCalcTestCase{
+		currentReplicas:  5,
+		expectedReplicas: 2,
+		podReadiness:     []v1.ConditionStatus{v1.ConditionTrue, v1.ConditionFalse, v1.ConditionFalse, v1.ConditionFalse, v1.ConditionFalse},
+		resource: &resourceInfo{
+			name:     v1.ResourceCPU,
+			requests: []resource.Quantity{resource.MustParse("1.0"), resource.MustParse("1.0"), resource.MustParse("1.0"), resource.MustParse("1.0"), resource.MustParse("1.0")},
+			levels:   []int64{100},
+
+			targetUtilization:   50,
+			expectedUtilization: 10,
+			expectedValue:       numContainersPerPod * 100,
 		},
 	}
 	tc.runTest(t)
