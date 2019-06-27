@@ -1355,12 +1355,6 @@ func TestGroupPods(t *testing.T) {
 					},
 					Status: v1.PodStatus{
 						Phase: v1.PodSucceeded,
-						Conditions: []v1.PodCondition{
-							{
-								Type:   v1.PodScheduled,
-								Status: v1.ConditionTrue,
-							},
-						},
 					},
 				},
 			},
@@ -1383,12 +1377,6 @@ func TestGroupPods(t *testing.T) {
 						Phase: v1.PodSucceeded,
 						StartTime: &metav1.Time{
 							Time: time.Now(),
-						},
-						Conditions: []v1.PodCondition{
-							{
-								Type:   v1.PodScheduled,
-								Status: v1.ConditionTrue,
-							},
 						},
 					},
 				},
@@ -1418,10 +1406,6 @@ func TestGroupPods(t *testing.T) {
 								Type:               v1.PodReady,
 								LastTransitionTime: metav1.Time{Time: time.Now().Add(-30 * time.Second)},
 								Status:             v1.ConditionTrue,
-							},
-							{
-								Type:   v1.PodScheduled,
-								Status: v1.ConditionTrue,
 							},
 						},
 					},
@@ -1453,10 +1437,6 @@ func TestGroupPods(t *testing.T) {
 								LastTransitionTime: metav1.Time{Time: time.Now().Add(-30 * time.Second)},
 								Status:             v1.ConditionTrue,
 							},
-							{
-								Type:   v1.PodScheduled,
-								Status: v1.ConditionTrue,
-							},
 						},
 					},
 				},
@@ -1487,10 +1467,6 @@ func TestGroupPods(t *testing.T) {
 								LastTransitionTime: metav1.Time{Time: time.Now().Add(-9*time.Minute - 54*time.Second)},
 								Status:             v1.ConditionFalse,
 							},
-							{
-								Type:   v1.PodScheduled,
-								Status: v1.ConditionTrue,
-							},
 						},
 					},
 				},
@@ -1520,10 +1496,6 @@ func TestGroupPods(t *testing.T) {
 								Type:               v1.PodReady,
 								LastTransitionTime: metav1.Time{Time: time.Now().Add(-3 * time.Minute)},
 								Status:             v1.ConditionTrue,
-							},
-							{
-								Type:   v1.PodScheduled,
-								Status: v1.ConditionTrue,
 							},
 						},
 					},
@@ -1556,10 +1528,6 @@ func TestGroupPods(t *testing.T) {
 								LastTransitionTime: metav1.Time{Time: time.Now().Add(-9 * time.Minute)},
 								Status:             v1.ConditionFalse,
 							},
-							{
-								Type:   v1.PodScheduled,
-								Status: v1.ConditionTrue,
-							},
 						},
 					},
 				},
@@ -1590,10 +1558,6 @@ func TestGroupPods(t *testing.T) {
 								LastTransitionTime: metav1.Time{Time: time.Now().Add(-9*time.Minute - 50*time.Second)},
 								Status:             v1.ConditionFalse,
 							},
-							{
-								Type:   v1.PodScheduled,
-								Status: v1.ConditionTrue,
-							},
 						},
 					},
 				},
@@ -1618,12 +1582,6 @@ func TestGroupPods(t *testing.T) {
 						StartTime: &metav1.Time{
 							Time: time.Now().Add(-3 * time.Minute),
 						},
-						Conditions: []v1.PodCondition{
-							{
-								Type:   v1.PodScheduled,
-								Status: v1.ConditionTrue,
-							},
-						},
 					},
 				},
 			},
@@ -1645,12 +1603,6 @@ func TestGroupPods(t *testing.T) {
 						StartTime: &metav1.Time{
 							Time: time.Now(),
 						},
-						Conditions: []v1.PodCondition{
-							{
-								Type:   v1.PodScheduled,
-								Status: v1.ConditionTrue,
-							},
-						},
 					},
 				},
 				{
@@ -1668,10 +1620,6 @@ func TestGroupPods(t *testing.T) {
 								LastTransitionTime: metav1.Time{Time: time.Now().Add(-3 * time.Minute)},
 								Status:             v1.ConditionTrue,
 							},
-							{
-								Type:   v1.PodScheduled,
-								Status: v1.ConditionTrue,
-							},
 						},
 					},
 				},
@@ -1683,12 +1631,6 @@ func TestGroupPods(t *testing.T) {
 						Phase: v1.PodSucceeded,
 						StartTime: &metav1.Time{
 							Time: time.Now().Add(-3 * time.Minute),
-						},
-						Conditions: []v1.PodCondition{
-							{
-								Type:   v1.PodScheduled,
-								Status: v1.ConditionTrue,
-							},
 						},
 					},
 				},
@@ -1704,18 +1646,16 @@ func TestGroupPods(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			readyPodCount, ignoredPods, missingPods := groupPods(tc.pods, tc.metrics, tc.resource, defaultTestingCpuInitializationPeriod, defaultTestingDelayOfInitialReadinessStatus)
-			if readyPodCount != tc.expectReadyPodCount {
-				t.Errorf("%s got readyPodCount %d, expected %d", tc.name, readyPodCount, tc.expectReadyPodCount)
-			}
-			if !ignoredPods.Equal(tc.expectIgnoredPods) {
-				t.Errorf("%s got unreadyPods %v, expected %v", tc.name, ignoredPods, tc.expectIgnoredPods)
-			}
-			if !missingPods.Equal(tc.expectMissingPods) {
-				t.Errorf("%s got missingPods %v, expected %v", tc.name, missingPods, tc.expectMissingPods)
-			}
-		})
+		readyPodCount, ignoredPods, missingPods := groupPods(tc.pods, tc.metrics, tc.resource, defaultTestingCpuInitializationPeriod, defaultTestingDelayOfInitialReadinessStatus)
+		if readyPodCount != tc.expectReadyPodCount {
+			t.Errorf("%s got readyPodCount %d, expected %d", tc.name, readyPodCount, tc.expectReadyPodCount)
+		}
+		if !ignoredPods.Equal(tc.expectIgnoredPods) {
+			t.Errorf("%s got unreadyPods %v, expected %v", tc.name, ignoredPods, tc.expectIgnoredPods)
+		}
+		if !missingPods.Equal(tc.expectMissingPods) {
+			t.Errorf("%s got missingPods %v, expected %v", tc.name, missingPods, tc.expectMissingPods)
+		}
 	}
 }
 
