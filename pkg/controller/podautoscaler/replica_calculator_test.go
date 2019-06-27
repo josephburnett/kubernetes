@@ -1646,18 +1646,48 @@ func TestGroupPods(t *testing.T) {
 			sets.NewString("lucretius"),
 			sets.NewString("epicurus"),
 		},
+		{
+			name: "unschedulable pods are ignored",
+			pods: []*v1.Pod{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "unscheduled",
+					},
+					Status: v1.PodStatus{
+						Phase: v1.PodPending,
+						StartTime: &metav1.Time{
+							Time: time.Now(),
+						},
+						Conditions: []v1.PodCondition{
+							{
+								Type:   v1.PodScheduled,
+								Status: v1.ConditionFalse,
+								Reason: v1.PodReasonUnschedulable,
+							},
+						},
+					},
+				},
+			},
+			metrics:             metricsclient.PodMetricsInfo{},
+			resource:            v1.ResourceCPU,
+			expectReadyPodCount: 0,
+			expectIgnoredPods:   sets.NewString("unscheduled"),
+			expectMissingPods:   sets.NewString(),
+		},
 	}
 	for _, tc := range tests {
-		readyPodCount, ignoredPods, missingPods := groupPods(tc.pods, tc.metrics, tc.resource, defaultTestingCpuInitializationPeriod, defaultTestingDelayOfInitialReadinessStatus)
-		if readyPodCount != tc.expectReadyPodCount {
-			t.Errorf("%s got readyPodCount %d, expected %d", tc.name, readyPodCount, tc.expectReadyPodCount)
-		}
-		if !ignoredPods.Equal(tc.expectIgnoredPods) {
-			t.Errorf("%s got unreadyPods %v, expected %v", tc.name, ignoredPods, tc.expectIgnoredPods)
-		}
-		if !missingPods.Equal(tc.expectMissingPods) {
-			t.Errorf("%s got missingPods %v, expected %v", tc.name, missingPods, tc.expectMissingPods)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			readyPodCount, ignoredPods, missingPods := groupPods(tc.pods, tc.metrics, tc.resource, defaultTestingCpuInitializationPeriod, defaultTestingDelayOfInitialReadinessStatus)
+			if readyPodCount != tc.expectReadyPodCount {
+				t.Errorf("%s got readyPodCount %d, expected %d", tc.name, readyPodCount, tc.expectReadyPodCount)
+			}
+			if !ignoredPods.Equal(tc.expectIgnoredPods) {
+				t.Errorf("%s got unreadyPods %v, expected %v", tc.name, ignoredPods, tc.expectIgnoredPods)
+			}
+			if !missingPods.Equal(tc.expectMissingPods) {
+				t.Errorf("%s got missingPods %v, expected %v", tc.name, missingPods, tc.expectMissingPods)
+			}
+		})
 	}
 }
 
