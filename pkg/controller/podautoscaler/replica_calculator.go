@@ -22,7 +22,7 @@ import (
 	"time"
 
 	autoscaling "k8s.io/api/autoscaling/v2beta2"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -105,7 +105,9 @@ func (c *ReplicaCalculator) GetResourceReplicas(currentReplicas int32, targetUti
 		if usageRatio < 1.0 {
 			// on a scale-down, treat missing pods as using 100% of the resource request
 			for podName := range missingPods {
-				metrics[podName] = metricsclient.PodMetric{Value: requests[podName]}
+				if _, ignored := ignoredPods[podName]; !ignored {
+					metrics[podName] = metricsclient.PodMetric{Value: requests[podName]}
+				}
 			}
 		} else if usageRatio > 1.0 {
 			// on a scale-up, treat missing pods as using 0% of the resource request
@@ -201,7 +203,9 @@ func (c *ReplicaCalculator) calcPlainMetricReplicas(metrics metricsclient.PodMet
 		if usageRatio < 1.0 {
 			// on a scale-down, treat missing pods as using 100% of the resource request
 			for podName := range missingPods {
-				metrics[podName] = metricsclient.PodMetric{Value: targetUtilization}
+				if _, ignored := ignoredPods[podName]; !ignored {
+					metrics[podName] = metricsclient.PodMetric{Value: targetUtilization}
+				}
 			}
 		} else {
 			// on a scale-up, treat missing pods as using 0% of the resource request
