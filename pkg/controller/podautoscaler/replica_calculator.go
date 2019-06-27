@@ -365,7 +365,9 @@ func groupPods(pods []*v1.Pod, metrics metricsclient.PodMetricsInfo, resource v1
 		if pod.DeletionTimestamp != nil || pod.Status.Phase == v1.PodFailed {
 			continue
 		}
-		if _, condition := podutil.GetPodCondition(&pod.Status, v1.PodScheduled); condition == nil || condition.Status == v1.ConditionFalse {
+		// Unschedulable pods are always ignored.
+		_, scheduled := podutil.GetPodCondition(&pod.Status, v1.PodScheduled)
+		if scheduled != nil && scheduled.Status == v1.ConditionFalse && scheduled.Reason == v1.PodReasonUnschedulable {
 			ignoredPods.Insert(pod.Name)
 			continue
 		}
