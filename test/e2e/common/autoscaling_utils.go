@@ -375,10 +375,17 @@ func (rc *ResourceConsumer) WaitForReplicas(desiredReplicas int, duration time.D
 }
 
 func (rc *ResourceConsumer) EnsureDesiredReplicas(desiredReplicas int, duration time.Duration, hpaName string) {
-	rc.EnsureDesiredReplicasInRange(desiredReplicas, desiredReplicas, duration, hpaName)
+	rc.EnsureDesiredReplicasInRange(desiredReplicas, desiredReplicas, duration, hpaName, EventuallyWithinRange)
 }
 
-func (rc *ResourceConsumer) EnsureDesiredReplicasInRange(minDesiredReplicas, maxDesiredReplicas int, duration time.Duration, hpaName string) {
+type strictness bool
+
+var (
+	EventuallyWithinRange false
+	StrictlyWithinRange   true
+)
+
+func (rc *ResourceConsumer) EnsureDesiredReplicasInRange(minDesiredReplicas, maxDesiredReplicas int, duration time.Duration, hpaName string, strict strictness) {
 	interval := 10 * time.Second
 	err := wait.PollImmediate(interval, duration, func() (bool, error) {
 		replicas := rc.GetReplicas()
@@ -390,9 +397,9 @@ func (rc *ResourceConsumer) EnsureDesiredReplicasInRange(minDesiredReplicas, max
 			e2elog.Logf("HPA status: %+v", as.Status)
 		}
 		if replicas < minDesiredReplicas {
-			return false, fmt.Errorf("number of replicas below target")
+			return strict, fmt.Errorf("number of replicas below target")
 		} else if replicas > maxDesiredReplicas {
-			return false, fmt.Errorf("number of replicas above target")
+			return strict, fmt.Errorf("number of replicas above target")
 		} else {
 			return false, nil // Expected number of replicas found. Continue polling until timeout.
 		}

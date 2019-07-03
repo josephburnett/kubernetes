@@ -96,17 +96,19 @@ var _ = SIGDescribe("[HPA] Horizontal pod autoscaling (scale resource: CPU)", fu
 
 // HPAScaleTest struct is used by the scale(...) function.
 type HPAScaleTest struct {
-	initPods                    int
-	totalInitialCPUUsage        int
-	perPodCPURequest            int64
-	targetCPUUtilizationPercent int32
-	minPods                     int32
-	maxPods                     int32
-	firstScale                  int
-	firstScaleStasis            time.Duration
-	cpuBurst                    int
-	secondScale                 int32
-	secondScaleStasis           time.Duration
+	initPods                           int
+	totalInitialCPUUsage               int
+	perPodCPURequest                   int64
+	targetCPUUtilizationPercent        int32
+	minPods                            int32
+	maxPods                            int32
+	firstScale                         int
+	firstScaleStasis                   time.Duration
+	cpuBurst                           int
+	secondScale                        int32
+	secondScaleStasis                  time.Duration
+	secondScaleFailureThresholdMinPods int32
+	secondScaleFailureThresholdMaxPods int32
 }
 
 // run is a method which runs an HPA lifecycle, from a starting state, to an expected
@@ -123,7 +125,11 @@ func (scaleTest *HPAScaleTest) run(name string, kind schema.GroupVersionKind, rc
 
 	rc.WaitForReplicas(scaleTest.firstScale, timeToWait)
 	if scaleTest.firstScaleStasis > 0 {
-		rc.EnsureDesiredReplicasInRange(scaleTest.firstScale, scaleTest.firstScale+1, scaleTest.firstScaleStasis, hpa.Name)
+		rc.EnsureDesiredReplicasInRange(scaleTest.firstScale, scaleTest.firstScale+1, scaleTest.firstScaleStasis, hpa.Name, common.EventuallyWithinLimit)
+	}
+	if scaleTest.secondScaleFailureThresholdMaxPods > 0 {
+		// in a go routine
+		rc.EnsureDesiredReplicasInRange(scaleTest.secondScaleFailureThresholdMinPods, scaleTest.secondScaleFailureThresholdMaxPods, scaleTest.secondScaleStasis, hpa.Name, common.StrictlyWithinLimit)
 	}
 	if scaleTest.cpuBurst > 0 && scaleTest.secondScale > 0 {
 		rc.ConsumeCPU(scaleTest.cpuBurst)
