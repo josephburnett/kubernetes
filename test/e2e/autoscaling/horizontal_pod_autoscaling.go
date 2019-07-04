@@ -37,12 +37,47 @@ var _ = SIGDescribe("[HPA] Horizontal pod autoscaling (scale resource: CPU)", fu
 	titleDown := "Should scale from 5 pods to 3 pods and from 3 to 1"
 
 	SIGDescribe("[Serial] [Slow] Deployment", func() {
+		// TODO: does it have to be under load?
+
 		// CPU tests via deployments
 		ginkgo.It(titleUp, func() {
 			scaleUp("test-deployment", common.KindDeployment, false, rc, f)
 		})
 		ginkgo.It(titleDown, func() {
 			scaleDown("test-deployment", common.KindDeployment, false, rc, f)
+		})
+		ginkgo.It("JWB doesn't lose it's mind when updated", func() {
+			scaleUnderLoad := int32(5)
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				// Scale up under load and set strict limits on max scale.
+				scaleTest := &HPAScaleTest{
+					initPods:                           1,
+					totalInitialCPUUsage:               250,
+					perPodCPURequest:                   500,
+					targetCPUUtilizationPercent:        20,
+					minPods:                            1,
+					maxPods:                            5,
+					firstScale:                         1,
+					cpuBurst:                           700,
+					secondScale:                        scaleUnderLoad,
+					secondScaleStasis:                  5 * time.Minute,
+					secondScaleFailureThresholdMaxPods: 5,
+				}
+				scaleTest.run("name", common.KindDeployment, rc, f)
+			}()
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				// Wait for the deployment to get scale.
+				// TODO: I can't do this here. Deployment isn't created until scaleTest.run.
+				rc.WaitForReplicas(int(scaleUnderLoad), 3*time.Minute)
+				// TODO: Update the deployment while under load.
+				time.Sleep(time.Minute)
+			}()
+			wg.Wait()
 		})
 	})
 
@@ -108,8 +143,8 @@ type HPAScaleTest struct {
 	cpuBurst                           int
 	secondScale                        int32
 	secondScaleStasis                  time.Duration
-	secondScaleFailureThresholdMinPods int32
-	secondScaleFailureThresholdMaxPods int32
+	secondScaleFailureThresholdMinPods int
+	secondScaleFailureThresholdMaxPods int
 }
 
 // run is a method which runs an HPA lifecycle, from a starting state, to an expected

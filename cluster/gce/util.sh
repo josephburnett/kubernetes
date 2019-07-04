@@ -458,6 +458,7 @@ function detect-nodes() {
 #   KUBE_MASTER_IP
 function detect-master() {
   detect-project
+  MASTER_NAME="kubernetes-master"
   KUBE_MASTER=${MASTER_NAME}
   echo "Trying to find master named '${MASTER_NAME}'" >&2
   if [[ -z "${KUBE_MASTER_IP-}" ]]; then

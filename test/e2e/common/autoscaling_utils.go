@@ -381,8 +381,8 @@ func (rc *ResourceConsumer) EnsureDesiredReplicas(desiredReplicas int, duration 
 type strictness bool
 
 var (
-	EventuallyWithinRange false
-	StrictlyWithinRange   true
+	EventuallyWithinRange strictness = false
+	StrictlyWithinRange   strictness = true
 )
 
 func (rc *ResourceConsumer) EnsureDesiredReplicasInRange(minDesiredReplicas, maxDesiredReplicas int, duration time.Duration, hpaName string, strict strictness) {
@@ -397,9 +397,9 @@ func (rc *ResourceConsumer) EnsureDesiredReplicasInRange(minDesiredReplicas, max
 			e2elog.Logf("HPA status: %+v", as.Status)
 		}
 		if replicas < minDesiredReplicas {
-			return strict, fmt.Errorf("number of replicas below target")
+			return bool(strict), fmt.Errorf("number of replicas below target")
 		} else if replicas > maxDesiredReplicas {
-			return strict, fmt.Errorf("number of replicas above target")
+			return bool(strict), fmt.Errorf("number of replicas above target")
 		} else {
 			return false, nil // Expected number of replicas found. Continue polling until timeout.
 		}
