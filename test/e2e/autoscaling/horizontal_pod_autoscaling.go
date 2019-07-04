@@ -17,6 +17,7 @@ limitations under the License.
 package autoscaling
 
 import (
+	"sync"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -125,16 +126,38 @@ func (scaleTest *HPAScaleTest) run(name string, kind schema.GroupVersionKind, rc
 
 	rc.WaitForReplicas(scaleTest.firstScale, timeToWait)
 	if scaleTest.firstScaleStasis > 0 {
-		rc.EnsureDesiredReplicasInRange(scaleTest.firstScale, scaleTest.firstScale+1, scaleTest.firstScaleStasis, hpa.Name, common.EventuallyWithinLimit)
+		// Verify pod count eventually lands within the desired range.
+		rc.EnsureDesiredReplicasInRange(
+			scaleTest.firstScale,
+			scaleTest.firstScale+1,
+			scaleTest.firstScaleStasis,
+			hpa.Name,
+			common.EventuallyWithinLimit)
 	}
+	var wg sync.WaitGroup
 	if scaleTest.secondScaleFailureThresholdMaxPods > 0 {
-		// in a go routine
-		rc.EnsureDesiredReplicasInRange(scaleTest.secondScaleFailureThresholdMinPods, scaleTest.secondScaleFailureThresholdMaxPods, scaleTest.secondScaleStasis, hpa.Name, common.StrictlyWithinLimit)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// Verify the pod count never exceeds the desired range.
+			rc.EnsureDesiredReplicasInRange(
+				scaleTest.secondScaleFailureThresholdMinPods,
+				scaleTest.secondScaleFailureThresholdMaxPods,
+				scaleTest.secondScaleStasis,
+				hpa.Name,
+				common.StrictlyWithinLimit)
+		}()
 	}
 	if scaleTest.cpuBurst > 0 && scaleTest.secondScale > 0 {
-		rc.ConsumeCPU(scaleTest.cpuBurst)
-		rc.WaitForReplicas(int(scaleTest.secondScale), timeToWait)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			rc.ConsumeCPU(scaleTest.cpuBurst)
+			// Verify the desired pod count is achieved.
+			rc.WaitForReplicas(int(scaleTest.secondScale), timeToWait)
+		}()
 	}
+	wg.Wait()
 }
 
 func scaleUp(name string, kind schema.GroupVersionKind, checkStability bool, rc *common.ResourceConsumer, f *framework.Framework) {
