@@ -132,7 +132,7 @@ func (scaleTest *HPAScaleTest) run(name string, kind schema.GroupVersionKind, rc
 			scaleTest.firstScale+1,
 			scaleTest.firstScaleStasis,
 			hpa.Name,
-			common.EventuallyWithinLimit)
+			common.EventuallyWithinRange)
 	}
 	var wg sync.WaitGroup
 	if scaleTest.secondScaleFailureThresholdMaxPods > 0 {
@@ -145,7 +145,7 @@ func (scaleTest *HPAScaleTest) run(name string, kind schema.GroupVersionKind, rc
 				scaleTest.secondScaleFailureThresholdMaxPods,
 				scaleTest.secondScaleStasis,
 				hpa.Name,
-				common.StrictlyWithinLimit)
+				common.StrictlyWithinRange)
 		}()
 	}
 	if scaleTest.cpuBurst > 0 && scaleTest.secondScale > 0 {
