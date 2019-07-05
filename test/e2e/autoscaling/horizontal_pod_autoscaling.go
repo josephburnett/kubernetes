@@ -20,9 +20,13 @@ import (
 	"sync"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kubernetes/test/e2e/common"
 	"k8s.io/kubernetes/test/e2e/framework"
+	"k8s.io/kubernetes/test/e2e/framework/deployment"
+	testutils "k8s.io/kubernetes/test/utils"
 
 	"github.com/onsi/ginkgo"
 )
@@ -37,8 +41,6 @@ var _ = SIGDescribe("[HPA] Horizontal pod autoscaling (scale resource: CPU)", fu
 	titleDown := "Should scale from 5 pods to 3 pods and from 3 to 1"
 
 	SIGDescribe("[Serial] [Slow] Deployment", func() {
-		// TODO: does it have to be under load?
-
 		// CPU tests via deployments
 		ginkgo.It(titleUp, func() {
 			scaleUp("test-deployment", common.KindDeployment, false, rc, f)
@@ -46,38 +48,33 @@ var _ = SIGDescribe("[HPA] Horizontal pod autoscaling (scale resource: CPU)", fu
 		ginkgo.It(titleDown, func() {
 			scaleDown("test-deployment", common.KindDeployment, false, rc, f)
 		})
-		ginkgo.It("JWB doesn't lose it's mind when updated", func() {
-			scaleUnderLoad := int32(5)
-			var wg sync.WaitGroup
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				// Scale up under load and set strict limits on max scale.
-				scaleTest := &HPAScaleTest{
-					initPods:                           1,
-					totalInitialCPUUsage:               250,
-					perPodCPURequest:                   500,
-					targetCPUUtilizationPercent:        20,
-					minPods:                            1,
-					maxPods:                            5,
-					firstScale:                         1,
-					cpuBurst:                           700,
-					secondScale:                        scaleUnderLoad,
-					secondScaleStasis:                  5 * time.Minute,
-					secondScaleFailureThresholdMaxPods: 5,
+		ginkgo.It("JWB a deployment cause the hpa to lose its mind when updated", func() {
+			// Scale up under load and set strict limits on max scale.
+			fn := func(d *appsv1.Deployment) {
+				probe := &v1.Probe{
+					Handler: v1.Handler{
+						Exec: &v1.ExecAction{
+							Command: []string{"sleep", "60"},
+						},
+					},
 				}
-				scaleTest.run("name", common.KindDeployment, rc, f)
-			}()
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				// Wait for the deployment to get scale.
-				// TODO: I can't do this here. Deployment isn't created until scaleTest.run.
-				rc.WaitForReplicas(int(scaleUnderLoad), 3*time.Minute)
-				// TODO: Update the deployment while under load.
-				time.Sleep(time.Minute)
-			}()
-			wg.Wait()
+				d.Spec.Template.Spec.Containers[0].ReadinessProbe = probe
+			}
+			scaleTest := &HPAScaleTest{
+				initPods:                           1,
+				totalInitialCPUUsage:               250,
+				perPodCPURequest:                   500,
+				targetCPUUtilizationPercent:        20,
+				minPods:                            1,
+				maxPods:                            5,
+				firstScale:                         1,
+				cpuBurst:                           700,
+				secondScale:                        5,
+				secondScaleStasis:                  5 * time.Minute,
+				secondScaleFailureThresholdMaxPods: 5,
+				updateDeploymentFunc:               fn,
+			}
+			scaleTest.run("name", common.KindDeployment, rc, f)
 		})
 	})
 
@@ -145,6 +142,7 @@ type HPAScaleTest struct {
 	secondScaleStasis                  time.Duration
 	secondScaleFailureThresholdMinPods int
 	secondScaleFailureThresholdMaxPods int
+	updateDeploymentFunc               testutils.UpdateDeploymentFunc
 }
 
 // run is a method which runs an HPA lifecycle, from a starting state, to an expected
@@ -190,6 +188,14 @@ func (scaleTest *HPAScaleTest) run(name string, kind schema.GroupVersionKind, rc
 			rc.ConsumeCPU(scaleTest.cpuBurst)
 			// Verify the desired pod count is achieved.
 			rc.WaitForReplicas(int(scaleTest.secondScale), timeToWait)
+		}()
+	}
+	if scaleTest.updateDeploymentFunc != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			// Update the deployment under load.
+			deployment.UpdateDeploymentWithRetries(f.ClientSet, f.Namespace.Name, name, scaleTest.updateDeploymentFunc)
 		}()
 	}
 	wg.Wait()
