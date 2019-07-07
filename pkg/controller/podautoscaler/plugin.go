@@ -9,10 +9,31 @@ import (
 // BEGIN INTERFACE
 
 const (
-	SkInterfaceVersion  = 1
+	SkInterfaceVersion = 1
+
 	SkMetricCpu         = "cpu"
 	SkMetricConcurrency = "concurrency"
+
+	SkStatePending     = "pending"
+	SkStateRunning     = "running"
+	SkStateReady       = "ready"
+	SkStateTerminating = "terminating"
 )
+
+type SkPlugin interface {
+	NewAutoscaler(SkEnvironment, string) SkAutoscaler
+}
+
+type SkEnvironment interface {
+	Pods() []SkPod
+}
+
+type SkPod interface {
+	Name() string
+	State() string
+	LastTransistion() int64
+	CpuRequest() int32
+}
 
 type SkAutoscaler interface {
 	Scale(int64) (int32, error)
@@ -21,11 +42,12 @@ type SkAutoscaler interface {
 
 type SkStat interface {
 	Time() int64
+	PodName() string
 	Metric() string
-	Value() (int32, bool)
-	AverageValue() (int32, bool)
-	AverageUtilization() (int32, bool)
+	Value() int32
 }
+
+// END INTERFACE
 
 func NewSkAutoscaler(hpa string) SkAutoscaler {
 	// TODO: make a bunch of fake stuff
@@ -48,8 +70,6 @@ func NewSkAutoscaler(hpa string) SkAutoscaler {
 		hpa: (*autoscalingv2.HorizontalPodAutoscaler)(nil),
 	}
 }
-
-// END INTERFACE
 
 type kubernetesAutoscaler struct {
 	controller *HorizontalController
