@@ -8,7 +8,11 @@ import (
 
 // BEGIN INTERFACE
 
-var SkInterfaceVersion = 1
+const (
+	SkInterfaceVersion  = 1
+	SkMetricCpu         = "cpu"
+	SkMetricConcurrency = "concurrency"
+)
 
 type SkAutoscaler interface {
 	Scale(int64) (int32, error)
@@ -23,17 +27,41 @@ type SkStat interface {
 	AverageUtilization() (int32, bool)
 }
 
+func NewSkAutoscaler(hpa string) SkAutoscaler {
+	// TODO: make a bunch of fake stuff
+	// TODO: parse hpa string as hpa object
+	return &kubernetesAutoscaler{
+		controller: NewHorizontalController(
+			evtNamespacer,
+			scaleNamespacer,
+			hpaNamespacer,
+			mapper,
+			metricsClient,
+			hpaInformer,
+			podInformer,
+			resyncPeriod,
+			downscaleStabilisationWindow,
+			tolerance,
+			cpuInitializationPeriod,
+			delayOfInitialReadinessStatus,
+		),
+		hpa: (*autoscalingv2.HorizontalPodAutoscaler)(nil),
+	}
+}
+
 // END INTERFACE
 
-type KubernetesAutoscaler struct {
+type kubernetesAutoscaler struct {
 	controller *HorizontalController
 	hpa        *autoscalingv2.HorizontalPodAutoscaler
 }
 
-func (ka *KubernetesAutoscaler) Scale(time.Time) (int32, error) {
+var _ SkAutoscaler = (*kubernetesAutoscaler)(nil)
+
+func (ka *kubernetesAutoscaler) Scale(time.Time) (int32, error) {
 	// TODO: reconcile hpa
 }
 
-func (ka *KubernetesAutoscaler) Record(Stat) error {
+func (ka *kubernetesAutoscaler) Record(Stat) error {
 	// TODO: record to fake metrics client
 }
