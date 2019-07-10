@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"time"
 
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	"k8s.io/apimachinery/pkg/api/meta/testrestmapper"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -90,6 +91,12 @@ func NewSkAutoscaler(hpaYaml string) (SkAutoscaler, error) {
 	if err := decoder.Decode(&hpa); err != nil {
 		return nil, err
 	}
+	hpaRaw, err := unsafeConvertToVersionVia(hpa, autoscalingv1.SchemeGroupVersion)
+	if err != nil {
+		return nil, err
+	}
+	hpav1 := hpaRaw.(*autoscalingv1.HorizontalPodAutoscaler)
+
 	return &kubernetesAutoscaler{
 		controller: NewHorizontalController(
 			evtNamespacer,
@@ -105,23 +112,28 @@ func NewSkAutoscaler(hpaYaml string) (SkAutoscaler, error) {
 			cpuInitializationPeriod,
 			delayOfInitialReadinessStatus,
 		),
-		hpa: hpa,
+		hpa:   hpav1,
+		stats: make(map[string]SkStat),
 	}, nil
 }
 
 type kubernetesAutoscaler struct {
 	controller *HorizontalController
-	hpa        *autoscalingv2.HorizontalPodAutoscaler
+	hpa        *autoscalingv1.HorizontalPodAutoscaler
+	stats      map[string]SkStat
 }
 
 var _ SkAutoscaler = (*kubernetesAutoscaler)(nil)
 
 func (ka *kubernetesAutoscaler) Scale(now int64) (int32, error) {
-	// TODO: reconcile hpa
-	return 1, nil
+	if err := ka.controller.reconcileAutoscaler(ka.hpa, "hpa"); err != nil {
+		return 0, err
+	}
+	return ka.hpa.Status.DesiredReplicas, nil
 }
 
 func (ka *kubernetesAutoscaler) Stat(stat SkStat) error {
-	// TODO: record to fake metrics client
+	ka.stats[stat.PodName()] = stat
+	// TODO: garbage collect stats after downscale stabilization window.
 	return nil
 }
