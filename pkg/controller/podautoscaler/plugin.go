@@ -1,10 +1,12 @@
 package podautoscaler
 
 import (
+	"bytes"
 	"time"
 
 	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
 	"k8s.io/apimachinery/pkg/api/meta/testrestmapper"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	scalefake "k8s.io/client-go/scale/fake"
@@ -59,7 +61,7 @@ type SkStat interface {
 
 // END INTERFACE
 
-func NewSkAutoscaler(hpa string) SkAutoscaler {
+func NewSkAutoscaler(hpaYaml string) (SkAutoscaler, error) {
 
 	client := &fake.Clientset{}
 	evtNamespacer := client.CoreV1()
@@ -83,7 +85,11 @@ func NewSkAutoscaler(hpa string) SkAutoscaler {
 	cpuInitializationPeriod := 2 * time.Minute
 	delayOfInitialReadinessStatus := 10 * time.Second
 
-	// TODO: parse hpa string as hpa object
+	hpa := &autoscalingv2.HorizontalPodAutoscaler{}
+	decoder := yaml.NewYAMLOrJSONDecoder(bytes.NewReader([]byte(hpaYaml)), 1000)
+	if err := decoder.Decode(&hpa); err != nil {
+		return nil, err
+	}
 	return &kubernetesAutoscaler{
 		controller: NewHorizontalController(
 			evtNamespacer,
@@ -99,8 +105,8 @@ func NewSkAutoscaler(hpa string) SkAutoscaler {
 			cpuInitializationPeriod,
 			delayOfInitialReadinessStatus,
 		),
-		hpa: (*autoscalingv2.HorizontalPodAutoscaler)(nil),
-	}
+		hpa: hpa,
+	}, nil
 }
 
 type kubernetesAutoscaler struct {
