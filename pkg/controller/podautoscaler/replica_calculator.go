@@ -365,17 +365,18 @@ func groupPods(pods []*v1.Pod, metrics metricsclient.PodMetricsInfo, resource v1
 		if pod.DeletionTimestamp != nil || pod.Status.Phase == v1.PodFailed {
 			continue
 		}
-		// Unschedulable pods are always ignored.
-		_, scheduled := podutil.GetPodCondition(&pod.Status, v1.PodScheduled)
-		if scheduled != nil && scheduled.Status == v1.ConditionFalse && scheduled.Reason == v1.PodReasonUnschedulable {
+		// Pending pods are ignored.
+		if pod.Status.Phase == v1.PodPending {
 			ignoredPods.Insert(pod.Name)
 			continue
 		}
+		// Pods missing metrics.
 		metric, found := metrics[pod.Name]
 		if !found {
 			missingPods.Insert(pod.Name)
 			continue
 		}
+		// Unready pods are ignored.
 		if resource == v1.ResourceCPU {
 			var ignorePod bool
 			_, condition := podutil.GetPodCondition(&pod.Status, v1.PodReady)

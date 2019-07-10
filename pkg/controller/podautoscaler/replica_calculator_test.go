@@ -94,7 +94,6 @@ type replicaCalcTestCase struct {
 	metricLabelSelector labels.Selector
 
 	podReadiness         []v1.ConditionStatus
-	podScheduled         []v1.ConditionStatus
 	podStartTime         []metav1.Time
 	podPhase             []v1.PodPhase
 	podDeletionTimestamp []bool
@@ -154,16 +153,6 @@ func (tc *replicaCalcTestCase) prepareTestClientSet() *fake.Clientset {
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{{}, {}},
 				},
-			}
-			if tc.podScheduled != nil && i < len(tc.podScheduled) {
-				condition := v1.PodCondition{
-					Type:   v1.PodScheduled,
-					Status: tc.podScheduled[i],
-				}
-				if condition.Status == v1.ConditionFalse {
-					condition.Reason = v1.PodReasonUnschedulable
-				}
-				pod.Status.Conditions = append(pod.Status.Conditions, condition)
 			}
 			if podDeletionTimestamp {
 				pod.DeletionTimestamp = &metav1.Time{Time: time.Now()}
@@ -878,7 +867,7 @@ func TestReplicaCalcScaleDownExcludeUnscheduledPods(t *testing.T) {
 		currentReplicas:  5,
 		expectedReplicas: 1,
 		podReadiness:     []v1.ConditionStatus{v1.ConditionTrue, v1.ConditionFalse, v1.ConditionFalse, v1.ConditionFalse, v1.ConditionFalse},
-		podScheduled:     []v1.ConditionStatus{v1.ConditionTrue, v1.ConditionFalse, v1.ConditionFalse, v1.ConditionFalse, v1.ConditionFalse},
+		podPhase:         []v1.PodPhase{v1.PodRunning, v1.PodPending, v1.PodPending, v1.PodPending, v1.PodPending},
 		resource: &resourceInfo{
 			name:     v1.ResourceCPU,
 			requests: []resource.Quantity{resource.MustParse("1.0"), resource.MustParse("1.0"), resource.MustParse("1.0"), resource.MustParse("1.0"), resource.MustParse("1.0")},
@@ -1647,7 +1636,7 @@ func TestGroupPods(t *testing.T) {
 			sets.NewString("epicurus"),
 		},
 		{
-			name: "unschedulable pods are ignored",
+			name: "pending pods are ignored",
 			pods: []*v1.Pod{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1655,16 +1644,6 @@ func TestGroupPods(t *testing.T) {
 					},
 					Status: v1.PodStatus{
 						Phase: v1.PodPending,
-						StartTime: &metav1.Time{
-							Time: time.Now(),
-						},
-						Conditions: []v1.PodCondition{
-							{
-								Type:   v1.PodScheduled,
-								Status: v1.ConditionFalse,
-								Reason: v1.PodReasonUnschedulable,
-							},
-						},
 					},
 				},
 			},
