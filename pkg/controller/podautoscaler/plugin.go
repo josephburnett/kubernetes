@@ -4,6 +4,16 @@ import (
 	"time"
 
 	autoscalingv2 "k8s.io/api/autoscaling/v2beta2"
+	"k8s.io/apimachinery/pkg/api/meta/testrestmapper"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes/fake"
+	scalefake "k8s.io/client-go/scale/fake"
+	"k8s.io/kubernetes/pkg/api/legacyscheme"
+	"k8s.io/kubernetes/pkg/controller"
+	"k8s.io/kubernetes/pkg/controller/podautoscaler/metrics"
+	metricsfake "k8s.io/metrics/pkg/client/clientset/versioned/fake"
+	cmfake "k8s.io/metrics/pkg/client/custom_metrics/fake"
+	emfake "k8s.io/metrics/pkg/client/external_metrics/fake"
 )
 
 // BEGIN INTERFACE
@@ -50,7 +60,29 @@ type SkStat interface {
 // END INTERFACE
 
 func NewSkAutoscaler(hpa string) SkAutoscaler {
-	// TODO: make a bunch of fake stuff
+
+	client := &fake.Clientset{}
+	evtNamespacer := client.CoreV1()
+	scaleNamespacer := &scalefake.FakeScaleClient{}
+	hpaNamespacer := client.AutoscalingV1()
+	mapper := testrestmapper.TestOnlyStaticRESTMapper(legacyscheme.Scheme)
+	testMetricsClient := &metricsfake.Clientset{}
+	testCMClient := &cmfake.FakeCustomMetricsClient{}
+	testEMClient := &emfake.FakeExternalMetricsClient{}
+	metricsClient := metrics.NewRESTMetricsClient(
+		testMetricsClient.MetricsV1beta1(),
+		testCMClient,
+		testEMClient,
+	)
+	informerFactory := informers.NewSharedInformerFactory(client, controller.NoResyncPeriodFunc())
+	hpaInformer := informerFactory.Autoscaling().V1().HorizontalPodAutoscalers()
+	podInformer := informerFactory.Core().V1().Pods()
+	resyncPeriod := controller.NoResyncPeriodFunc()
+	downscaleStabilizationWindow := 5 * time.Minute
+	tolerance := 0.1
+	cpuInitializationPeriod := 2 * time.Minute
+	delayOfInitialReadinessStatus := 10 * time.Second
+
 	// TODO: parse hpa string as hpa object
 	return &kubernetesAutoscaler{
 		controller: NewHorizontalController(
@@ -62,7 +94,7 @@ func NewSkAutoscaler(hpa string) SkAutoscaler {
 			hpaInformer,
 			podInformer,
 			resyncPeriod,
-			downscaleStabilisationWindow,
+			downscaleStabilizationWindow,
 			tolerance,
 			cpuInitializationPeriod,
 			delayOfInitialReadinessStatus,
@@ -78,10 +110,12 @@ type kubernetesAutoscaler struct {
 
 var _ SkAutoscaler = (*kubernetesAutoscaler)(nil)
 
-func (ka *kubernetesAutoscaler) Scale(time.Time) (int32, error) {
+func (ka *kubernetesAutoscaler) Scale(now int64) (int32, error) {
 	// TODO: reconcile hpa
+	return 1, nil
 }
 
-func (ka *kubernetesAutoscaler) Record(Stat) error {
+func (ka *kubernetesAutoscaler) Stat(stat SkStat) error {
 	// TODO: record to fake metrics client
+	return nil
 }
