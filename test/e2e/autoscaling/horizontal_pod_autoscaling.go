@@ -180,7 +180,7 @@ func (scaleTest *HPAScaleTest) run(name string, kind schema.GroupVersionKind, rc
 			defer wg.Done()
 			rc.ConsumeCPU(scaleTest.cpuBurst)
 			// Verify the desired pod count is achieved.
-			rc.WaitForReplicas(int(scaleTest.secondScale), timeToWait)
+			rc.WaitForReplicas(int(scaleTest.secondScale), 2*time.Minute)
 			if scaleTest.updateDeploymentFunc != nil {
 				// Then update the deployment under load.
 				wg.Add(1)
