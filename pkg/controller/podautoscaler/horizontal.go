@@ -250,7 +250,9 @@ func (a *HorizontalController) computeReplicasForMetrics(hpa *autoscalingv2.Hori
 		return 0, "", nil, time.Time{}, fmt.Errorf(errMsg)
 	}
 
-	specReplicas := scale.Spec.Replicas
+	// DO NOT SUBMIT unfixing #79035 for e2e testing.
+	specReplicas := scale.Status.Replicas
+	// specReplicas := scale.Spec.Replicas
 	statusReplicas := scale.Status.Replicas
 	statuses = make([]autoscalingv2.MetricStatus, len(metricSpecs))
 
