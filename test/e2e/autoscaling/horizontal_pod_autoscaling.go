@@ -21,7 +21,6 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/kubernetes/test/e2e/common"
 	"k8s.io/kubernetes/test/e2e/framework"
@@ -48,17 +47,11 @@ var _ = SIGDescribe("[HPA] Horizontal pod autoscaling (scale resource: CPU)", fu
 		ginkgo.It(titleDown, func() {
 			scaleDown("test-deployment", common.KindDeployment, false, rc, f)
 		})
-		ginkgo.It("JWB a deployment cause the hpa to lose its mind when updated", func() {
+		ginkgo.It("RUNTHISTEST a deployment update doesn't cause the hpa to lose its mind", func() {
 			// Scale up under load and set strict limits on max scale.
 			fn := func(d *appsv1.Deployment) {
-				probe := &v1.Probe{
-					Handler: v1.Handler{
-						Exec: &v1.ExecAction{
-							Command: []string{"sleep", "60"},
-						},
-					},
-				}
-				d.Spec.Template.Spec.Containers[0].ReadinessProbe = probe
+				// Make the new pods unschedulable.
+				d.Spec.Template.Spec.NodeSelector = map[string]string{"foo": "bar"}
 			}
 			scaleTest := &HPAScaleTest{
 				initPods:                           1,
@@ -188,14 +181,14 @@ func (scaleTest *HPAScaleTest) run(name string, kind schema.GroupVersionKind, rc
 			rc.ConsumeCPU(scaleTest.cpuBurst)
 			// Verify the desired pod count is achieved.
 			rc.WaitForReplicas(int(scaleTest.secondScale), timeToWait)
-		}()
-	}
-	if scaleTest.updateDeploymentFunc != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			// Update the deployment under load.
-			deployment.UpdateDeploymentWithRetries(f.ClientSet, f.Namespace.Name, name, scaleTest.updateDeploymentFunc)
+			if scaleTest.updateDeploymentFunc != nil {
+				// Then update the deployment under load.
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					deployment.UpdateDeploymentWithRetries(f.ClientSet, f.Namespace.Name, name, scaleTest.updateDeploymentFunc)
+				}()
+			}
 		}()
 	}
 	wg.Wait()
