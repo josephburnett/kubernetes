@@ -342,7 +342,7 @@ func (a *HorizontalController) reconcileKey(key string) (deleted bool, err error
 		return true, nil
 	}
 
-	return false, a.reconcileAutoscaler(hpa, key)
+	return false, a.ReconcileAutoscaler(hpa, key)
 }
 
 // computeStatusForObjectMetric computes the desired number of replicas for the specified metric of type ObjectMetricSourceType.
@@ -527,7 +527,7 @@ func (a *HorizontalController) recordInitialRecommendation(currentReplicas int32
 	}
 }
 
-func (a *HorizontalController) reconcileAutoscaler(hpav1Shared *autoscalingv1.HorizontalPodAutoscaler, key string) error {
+func (a *HorizontalController) ReconcileAutoscaler(hpav1Shared *autoscalingv1.HorizontalPodAutoscaler, key string) error {
 	// make a copy so that we never mutate the shared informer cache (conversion can mutate the object)
 	hpav1 := hpav1Shared.DeepCopy()
 	// then, convert to autoscaling/v2, which makes our lives easier when calculating metrics
