@@ -2178,6 +2178,32 @@ func TestUpscaleCapGreaterThanMaxReplicas(t *testing.T) {
 	tc.runTest(t)
 }
 
+func TestMoreReplicasThanSpecNoScale(t *testing.T) {
+	tc := testCase{
+		minReplicas:             1,
+		maxReplicas:             8,
+		specReplicas:            4,
+		statusReplicas:          5, // Deployment update with 25% surge.
+		expectedDesiredReplicas: 4,
+		CPUTarget:               50,
+		reportedLevels:          []uint64{500, 500, 500, 500, 500},
+		reportedCPURequests: []resource.Quantity{
+			resource.MustParse("1"),
+			resource.MustParse("1"),
+			resource.MustParse("1"),
+			resource.MustParse("1"),
+			resource.MustParse("1"),
+		},
+		useMetricsAPI: true,
+		expectedConditions: statusOkWithOverrides(autoscalingv2.HorizontalPodAutoscalerCondition{
+			Type:   autoscalingv2.AbleToScale,
+			Status: v1.ConditionTrue,
+			Reason: "ReadyForNewScale",
+		}),
+	}
+	tc.runTest(t)
+}
+
 func TestConditionInvalidSelectorMissing(t *testing.T) {
 	tc := testCase{
 		minReplicas:             1,
